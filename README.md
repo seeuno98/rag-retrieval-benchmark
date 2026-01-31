@@ -108,6 +108,5 @@ curl -X POST http://localhost:8000/query -H "Content-Type: application/json" \
   -d '{"dataset":"mini","method":"hybrid","query":"planet with rings", "top_k":10}'
 ```
 
-The first request may be slower due to model warmup and index initialization.
-
+First request may be slower due to model/index initialization. Subsequent requests reuse in-memory caches and are significantly faster.
 
