@@ -44,7 +44,24 @@ Run the benchmark (mini dataset, bm25 + dense + hybrid):
 python3 scripts/run_benchmark.py --dataset mini --methods bm25,dense,hybrid --top_k 10
 ```
 
+Smoke test (limit to 20 queries):
+
+```bash
+python3 scripts/run_benchmark.py --dataset mini --methods bm25,dense,hybrid --top_k 10 --limit_queries 20
+```
+
+More stable latency (limit to 200 queries):
+
+```bash
+python3 scripts/run_benchmark.py --dataset mini --methods bm25,dense,hybrid --top_k 10 --limit_queries 200
+```
+
 Results are written to `results/results_latest.json`, `results/results_latest.csv`, and `results/results_latest.md`.
+
+## Artifacts
+
+- `results/`: latest metrics outputs (JSON/CSV/Markdown).
+- `artifacts/`: optional future artifacts (indexes, cached embeddings, etc.).
 
 ## Results (sample)
 
@@ -57,7 +74,17 @@ python3 scripts/run_benchmark.py --dataset mini --methods bm25,dense,hybrid --to
 | method | recall@5 | recall@10 | mrr@10 | p50_ms | p90_ms |
 | --- | --- | --- | --- | --- | --- |
 | bm25 | 0.9500 | 0.9500 | 0.9250 | 0.01 | 0.01 |
-| dense | 1.0000 | 1.0000 | 1.0000 | 5.34 | 6.07 |
-| hybrid | 0.9500 | 1.0000 | 0.9306 | 5.26 | 5.73 |
+| dense | 1.0000 | 1.0000 | 1.0000 | 5.82 | 6.57 |
+| hybrid | 0.9500 | 1.0000 | 0.9306 | 5.78 | 6.05 |
 
-Metrics are averaged over queries: Recall@K and MRR@10 reflect retrieval quality, while p50/p90 are end-to-end latencies (ms). Retrieval, rerank (if enabled later), and total latencies are tracked in the JSON artifact.
+Metrics are averaged over queries: Recall@K and MRR@10 reflect retrieval quality, while p50/p90 are end-to-end latencies (ms). Retrieval/rerank/total latencies are tracked in the JSON artifact.
+
+Notes:
+- On the tiny mini dataset (30 docs, 20 queries), BM25 latency can be in microseconds; values are reported in milliseconds and may round to ~0.01ms.
+
+- If you see a Hugging Face Hub warning, set `HF_TOKEN` to avoid unauthenticated request limits.
+
+- First run can be slightly slower due to model warmup and caching. For meaningful latency comparisons, use the MSMARCO subset.
+
+
+

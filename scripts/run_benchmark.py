@@ -103,6 +103,7 @@ def main() -> int:
     parser.add_argument("--methods", default="bm25,dense,hybrid")
     parser.add_argument("--top_k", type=int, default=10)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--limit_queries", type=int, default=None)
     parser.add_argument("--dense_model", default="sentence-transformers/all-MiniLM-L6-v2")
     parser.add_argument("--hybrid_k", type=int, default=60)
     parser.add_argument("--rerank", action="store_true", help="Placeholder flag for reranking stage.")
@@ -115,6 +116,13 @@ def main() -> int:
     corpus = load_corpus(dataset_dir / "corpus.jsonl")
     queries = load_queries(dataset_dir / "queries.jsonl")
     qrels = load_qrels(dataset_dir / "qrels.tsv")
+
+    if args.limit_queries is not None:
+        rng = random.Random(args.seed)
+        queries = list(queries)
+        rng.shuffle(queries)
+        queries = queries[: args.limit_queries]
+        print(f"Using {len(queries)} queries (limit_queries={args.limit_queries})")
 
     print(f"Loaded docs={len(corpus)}, queries={len(queries)}, qrels={sum(len(v) for v in qrels.values())}")
 
@@ -172,29 +180,34 @@ def main() -> int:
             per_query_results[qid] = [doc_id for doc_id, _ in scored]
 
         metrics = compute_metrics(per_query_results, qrels, k_values=[5, 10], mrr_k=10)
-        p50 = percentile(total_times, 50)
-        p90 = percentile(total_times, 90)
+        total_p50 = percentile(total_times, 50)
+        total_p90 = percentile(total_times, 90)
+        retrieval_p50 = percentile(retrieval_times, 50)
+        retrieval_p90 = percentile(retrieval_times, 90)
+        rerank_p50 = percentile(rerank_times, 50)
+        rerank_p90 = percentile(rerank_times, 90)
 
         results_json[method] = {
-            "recall@5": metrics.get("recall@5", 0.0),
-            "recall@10": metrics.get("recall@10", 0.0),
-            "mrr@10": metrics.get("mrr", 0.0),
-            "latency_p50_ms": p50,
-            "latency_p90_ms": p90,
-            "retrieval_p50_ms": percentile(retrieval_times, 50),
-            "retrieval_p90_ms": percentile(retrieval_times, 90),
-            "rerank_p50_ms": percentile(rerank_times, 50),
-            "rerank_p90_ms": percentile(rerank_times, 90),
+            "metrics": {
+                "recall@5": metrics.get("recall@5", 0.0),
+                "recall@10": metrics.get("recall@10", 0.0),
+                "mrr@10": metrics.get("mrr", 0.0),
+            },
+            "latency_ms": {
+                "retrieval": {"p50": retrieval_p50, "p90": retrieval_p90},
+                "total": {"p50": total_p50, "p90": total_p90},
+                "rerank": {"p50": rerank_p50, "p90": rerank_p90},
+            },
         }
 
         results_rows.append(
             {
                 "method": method,
-                "recall@5": f"{results_json[method]['recall@5']:.4f}",
-                "recall@10": f"{results_json[method]['recall@10']:.4f}",
-                "mrr@10": f"{results_json[method]['mrr@10']:.4f}",
-                "p50_ms": f"{results_json[method]['latency_p50_ms']:.2f}",
-                "p90_ms": f"{results_json[method]['latency_p90_ms']:.2f}",
+                "recall@5": f"{results_json[method]['metrics']['recall@5']:.4f}",
+                "recall@10": f"{results_json[method]['metrics']['recall@10']:.4f}",
+                "mrr@10": f"{results_json[method]['metrics']['mrr@10']:.4f}",
+                "p50_ms": f"{results_json[method]['latency_ms']['total']['p50']:.2f}",
+                "p90_ms": f"{results_json[method]['latency_ms']['total']['p90']:.2f}",
             }
         )
 
@@ -206,6 +219,7 @@ def main() -> int:
         "methods": methods,
         "top_k": args.top_k,
         "seed": args.seed,
+        "limit_queries": args.limit_queries,
         "dense_model": args.dense_model,
         "hybrid_k": args.hybrid_k,
         "rerank": args.rerank,
