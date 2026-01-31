@@ -51,6 +51,37 @@ class DenseIndex:
             model=model,
         )
 
+    @classmethod
+    def load(
+        cls,
+        index_path: str,
+        doc_ids: List[str],
+        model_name: str = "sentence-transformers/all-MiniLM-L6-v2",
+        normalize: bool = True,
+    ) -> "DenseIndex":
+        import faiss
+        from sentence_transformers import SentenceTransformer
+
+        index = faiss.read_index(index_path)
+        model = SentenceTransformer(model_name)
+        embeddings = np.empty((0, 0), dtype="float32")
+        return cls(
+            doc_ids=doc_ids,
+            embeddings=embeddings,
+            index=index,
+            model_name=model_name,
+            normalize=normalize,
+            model=model,
+        )
+
+    def save(self, index_path: str, doc_ids_path: str) -> None:
+        import faiss
+        import json
+
+        faiss.write_index(self.index, index_path)
+        with open(doc_ids_path, "w", encoding="utf-8") as handle:
+            json.dump(self.doc_ids, handle, indent=2)
+
     def retrieve(self, query: str, top_k: int) -> List[Tuple[str, float]]:
         query_emb = self.model.encode(
             [query],

@@ -1,0 +1,12 @@
+version: "3.9"
+services:
+  rag-retrieval-benchmark:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - HF_HOME=/app/.cache/huggingface
+    volumes:
+      - ./data:/app/data
+      - ./artifacts:/app/artifacts
+      - ./results:/app/results

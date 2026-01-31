@@ -86,5 +86,28 @@ Notes:
 
 - First run can be slightly slower due to model warmup and caching. For meaningful latency comparisons, use the MSMARCO subset.
 
+## Serving (FastAPI)
+
+Local run:
+
+```bash
+python3 -m uvicorn service.app:app --reload --port 8000
+```
+
+Docker run:
+
+```bash
+docker build -t rag-retrieval-benchmark .
+docker run -p 8000:8000 rag-retrieval-benchmark
+```
+
+Example curl:
+
+```bash
+curl -X POST http://localhost:8000/query -H "Content-Type: application/json" \
+  -d '{"dataset":"mini","method":"hybrid","query":"planet with rings", "top_k":10}'
+```
+
+The first request may be slower due to model warmup and index initialization.
 
 
