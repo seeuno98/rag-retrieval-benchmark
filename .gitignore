@@ -6,12 +6,22 @@ __pycache__/
 .venv/
 venv/
 
-# Data artifacts
-data/**/*
-!data/.gitkeep
-
 # OS / editor
 .DS_Store
 .vscode/
 
----
+# Generated artifacts (do not commit)
+data/
+results/
+artifacts/
+
+# Keep empty folder placeholders
+!data/.gitkeep
+!results/.gitkeep
+!artifacts/.gitkeep
+
+# Common ML artifacts
+*.index
+*.npy
+*.pt
+*.bin

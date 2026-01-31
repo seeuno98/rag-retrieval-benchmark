@@ -1,4 +1,4 @@
 numpy
 pandas
-
----
+faiss-cpu
+sentence-transformers
