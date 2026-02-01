@@ -84,9 +84,54 @@ def build_mini_dataset(output_dir: Path) -> None:
     print(f"docs={len(docs)}, queries={len(queries)}, qrels={sum(len(q[2]) for q in queries)}")
 
 
+def _count_lines(path: Path) -> int:
+    count = 0
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            if line.strip():
+                count += 1
+    return count
+
+
+def _count_qrels_rows(path: Path) -> int:
+    count = 0
+    with path.open("r", encoding="utf-8") as handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            if line.startswith("#"):
+                continue
+            count += 1
+    return count
+
+
+def validate_dataset_dir(dataset_dir: Path) -> Tuple[int, int, int]:
+    corpus_path = dataset_dir / "corpus.jsonl"
+    queries_path = dataset_dir / "queries.jsonl"
+    qrels_path = dataset_dir / "qrels.tsv"
+
+    missing = [p.name for p in (corpus_path, queries_path, qrels_path) if not p.exists()]
+    if missing:
+        raise ValueError(
+            "Missing dataset files. Expected: "
+            f"{dataset_dir}/corpus.jsonl, {dataset_dir}/queries.jsonl, {dataset_dir}/qrels.tsv"
+        )
+
+    docs = _count_lines(corpus_path)
+    queries = _count_lines(queries_path)
+    qrels = _count_qrels_rows(qrels_path)
+    return docs, queries, qrels
+
+
 def prepare_dataset(dataset: str, data_dir: Path) -> Path:
     if dataset != "mini":
-        raise ValueError(f"Unsupported dataset {dataset}; only 'mini' is supported today.")
+        dataset_dir = data_dir / dataset
+        docs, queries, qrels = validate_dataset_dir(dataset_dir)
+        print(f"Using existing dataset at {dataset_dir}")
+        print(f"docs={docs}, queries={queries}, qrels={qrels}")
+        return dataset_dir
+
     output_dir = data_dir / "mini"
     if (output_dir / "corpus.jsonl").exists() and (output_dir / "queries.jsonl").exists():
         print(f"Dataset already prepared at {output_dir}")
