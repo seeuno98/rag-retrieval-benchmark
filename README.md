@@ -143,3 +143,12 @@ curl -X POST http://localhost:8000/query -H "Content-Type: application/json" \
 ```
 
 First request may be slower due to model/index initialization. Subsequent requests reuse in-memory caches and are significantly faster.
+
+### RAG Generation (LangChain)
+
+```bash
+curl -X POST http://localhost:8000/rag -H "Content-Type: application/json" \
+  -d '{"dataset":"mini","method":"dense","query":"cats domestic animals","top_k":3}'
+```
+
+By default, /rag uses a deterministic mock LLM (no API keys required). If `OPENAI_API_KEY` is set, it will use an OpenAI chat model via LangChain instead.
