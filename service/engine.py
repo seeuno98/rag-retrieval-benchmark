@@ -37,7 +37,7 @@ class DatasetCache:
     bm25_index: Optional[BM25Index] = None
     dense_index: Optional[DenseIndex] = None
     dense_model: Optional[str] = None
-    dense_index_cached: bool = False
+    dense_loaded_from_disk: bool = False
     dense_initialized: bool = False
 
 
@@ -92,14 +92,14 @@ class RetrievalEngine:
                 normalize=True,
             )
             cache.dense_model = self._dense_model
-            cache.dense_index_cached = True
+            cache.dense_loaded_from_disk = True
             cache.dense_initialized = True
             return
 
         print(f"[engine] Building dense index for dataset={cache.dataset}")
         cache.dense_index = DenseIndex.build(cache.corpus, model_name=self._dense_model)
         cache.dense_model = self._dense_model
-        cache.dense_index_cached = False
+        cache.dense_loaded_from_disk = False
         cache.dense_initialized = True
         cache.dense_index.save(str(index_path), str(doc_ids_path))
         print(f"[engine] Saved dense index to {index_path}")
@@ -147,7 +147,7 @@ class RetrievalEngine:
         meta = {
             "cache": {
                 "in_memory": cache.dense_initialized if method in {"dense", "hybrid"} else False,
-                "loaded_from_disk": cache.dense_index_cached if method in {"dense", "hybrid"} else False,
+                "loaded_from_disk": cache.dense_loaded_from_disk if method in {"dense", "hybrid"} else False,
             },
             "model": cache.dense_model if method in {"dense", "hybrid"} else None,
         }
