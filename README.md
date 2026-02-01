@@ -6,6 +6,18 @@ Evaluation-first benchmark for RAG retrieval, comparing BM25, dense, and hybrid 
 
 ## Datasets
 
+### mini
+Tiny synthetic dataset for fast local testing (<5s). Useful for smoke tests and CI.
+
+### msmarco_subset
+100k passages, 2k queries. A realistic retrieval benchmark stored under:
+data/msmarco_subset/
+
+Normalized format:
+- corpus.jsonl
+- queries.jsonl
+- qrels.tsv
+
 MSMARCO (BEIR passage) provides natural-language queries over a large-scale passage corpus with relevance judgments (qrels). It is a standard retrieval benchmark for metrics such as MRR and nDCG.
 
 Reproducible MSMARCO subset commands (data/ is generated locally and not committed):
@@ -38,23 +50,18 @@ python3 -m venv .venv
 python3 -m pip install -r requirements.txt
 ```
 
-Run the benchmark (mini dataset, bm25 + dense + hybrid):
-
+Run a quick smoke test:
 ```bash
 python3 scripts/run_benchmark.py --dataset mini --methods bm25,dense,hybrid --top_k 10
 ```
 
-Smoke test (limit to 20 queries):
+Realistic benchmark (MSMARCO):
 
 ```bash
-python3 scripts/run_benchmark.py --dataset mini --methods bm25,dense,hybrid --top_k 10 --limit_queries 20
+python3 scripts/run_benchmark.py --dataset msmarco_subset --methods bm25,dense,hybrid --top_k 10 --limit_queries 200
 ```
 
-More stable latency (limit to 200 queries):
-
-```bash
-python3 scripts/run_benchmark.py --dataset mini --methods bm25,dense,hybrid --top_k 10 --limit_queries 200
-```
+Note: mini is for quick smoke tests; msmarco_subset gives realistic metrics.
 
 Results are written to `results/results_latest.json`, `results/results_latest.csv`, and `results/results_latest.md`.
 
@@ -63,9 +70,34 @@ Results are written to `results/results_latest.json`, `results/results_latest.cs
 - `results/`: latest metrics outputs (JSON/CSV/Markdown).
 - `artifacts/`: optional future artifacts (indexes, cached embeddings, etc.).
 
-## Results (sample)
 
-Command used:
+## Results (MSMARCO subset, 100k docs, 200 queries)
+
+| method | recall@5 | recall@10 | mrr@10 | p50_ms | p90_ms |
+| --- | --- | --- | --- | --- | --- |
+| bm25 | 0.7950 | 0.8375 | 0.6879 | 170.39 | 279.12 |
+| dense | 0.9300 | 0.9600 | 0.8447 | 12.61 | 13.75 |
+| hybrid | 0.8800 | 0.9325 | 0.7976 | 182.68 | 300.48 |
+
+Metrics are averaged over queries. Recall@K and MRR@10 measure retrieval quality; p50/p90 report median and tail latency (ms). Higher Recall/MRR is better; lower latency is better.
+
+
+Insights:
+- Dense retrieval improves Recall@10 by +12% and reduces latency ~10× vs BM25 on CPU.
+- Hybrid trades extra latency for combining signals
+- First request may be slower due to model warmup and artifact loading.
+
+
+
+
+## Results (mini, toy example)
+
+Used only for smoke testing; metrics are near-perfect due to tiny corpus.
+
+<details>
+  <summary>Click to expand to see the detailed results</summary>
+  
+  Command used:
 
 ```bash
 python3 scripts/run_benchmark.py --dataset mini --methods bm25,dense,hybrid --top_k 10
@@ -77,14 +109,16 @@ python3 scripts/run_benchmark.py --dataset mini --methods bm25,dense,hybrid --to
 | dense | 1.0000 | 1.0000 | 1.0000 | 5.82 | 6.57 |
 | hybrid | 0.9500 | 1.0000 | 0.9306 | 5.78 | 6.05 |
 
-Metrics are averaged over queries: Recall@K and MRR@10 reflect retrieval quality, while p50/p90 are end-to-end latencies (ms). Retrieval/rerank/total latencies are tracked in the JSON artifact.
+
 
 Notes:
 - On the tiny mini dataset (30 docs, 20 queries), BM25 latency can be in microseconds; values are reported in milliseconds and may round to ~0.01ms.
 
-- If you see a Hugging Face Hub warning, set `HF_TOKEN` to avoid unauthenticated request limits.
-
 - First run can be slightly slower due to model warmup and caching. For meaningful latency comparisons, use the MSMARCO subset.
+
+</details>
+
+
 
 ## Serving (FastAPI)
 
@@ -109,4 +143,3 @@ curl -X POST http://localhost:8000/query -H "Content-Type: application/json" \
 ```
 
 First request may be slower due to model/index initialization. Subsequent requests reuse in-memory caches and are significantly faster.
-
