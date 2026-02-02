@@ -259,3 +259,19 @@ Generation quality, however, is assessed by groundedness to retrieved context, r
 | retrieval (warm, in-memory index) | 5–15 ms |
 | generation (OpenAI LLM) | 500–2000 ms |
 
+## Developer shortcuts (Makefile)
+
+Common tasks are wrapped in a simple Makefile for reproducibility:
+
+```bash
+make bench-mini        # quick benchmark on mini dataset
+make bench-msmarco     # realistic benchmark on MSMARCO subset
+make serve             # run FastAPI locally
+make smoke-local       # health + query + rag smoke tests
+make docker-build
+make docker-run
+```
+
+These commands simply wrap the Python and curl commands shown above.
+
+---
