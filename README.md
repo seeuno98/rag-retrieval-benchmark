@@ -152,3 +152,12 @@ curl -X POST http://localhost:8000/rag -H "Content-Type: application/json" \
 ```
 
 By default, /rag uses a deterministic mock LLM (no API keys required). If `OPENAI_API_KEY` is set, it will use an OpenAI chat model via LangChain instead.
+
+To enable OpenAI-backed generation locally, create a `.env` file in the repo root:
+
+```bash
+OPENAI_API_KEY=your_key_here
+OPENAI_MODEL=gpt-4o-mini
+```
+
+The `.env` file is gitignored. Start the server normally; `/rag` will use OpenAI automatically when the key is present.

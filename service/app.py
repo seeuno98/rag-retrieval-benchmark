@@ -5,9 +5,12 @@ from typing import Literal, Optional
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
+from dotenv import load_dotenv
 
 from service.engine import RetrievalEngine
 from service.rag import build_context, generate_answer
+
+load_dotenv(override=False)
 
 app = FastAPI(title="RAG Retrieval Benchmark Service", version="0.1.0")
 engine = RetrievalEngine()

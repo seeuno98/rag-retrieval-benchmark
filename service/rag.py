@@ -75,7 +75,7 @@ def select_llm() -> Tuple[BaseChatModel, str]:
     api_key = os.getenv("OPENAI_API_KEY")
     if api_key and ChatOpenAI is not None:
         model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-        return ChatOpenAI(model=model, temperature=0), f"openai/{model}"
+        return ChatOpenAI(model=model, temperature=0), f"openai:{model}"
     return MockChatModel(), "mock"
 
 
