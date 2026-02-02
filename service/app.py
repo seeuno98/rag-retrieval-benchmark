@@ -17,7 +17,7 @@ engine = RetrievalEngine()
 
 
 class QueryRequest(BaseModel):
-    dataset: str = Field(default="mini")
+    dataset: Literal["mini", "msmarco_subset"] = Field(default="mini")
     method: Literal["bm25", "dense", "hybrid"] = Field(default="hybrid")
     query: str
     top_k: int = Field(default=10, ge=1, le=100)
@@ -50,7 +50,7 @@ def query(request: QueryRequest):
     if not query_text.strip():
         raise HTTPException(status_code=400, detail="query must be a non-empty string")
 
-    if dataset != "mini":
+    if dataset not in {"mini", "msmarco_subset"}:
         raise HTTPException(status_code=400, detail=f"Unsupported dataset: {dataset}")
 
     try:
