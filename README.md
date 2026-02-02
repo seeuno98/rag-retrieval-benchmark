@@ -122,6 +122,8 @@ Notes:
 
 ## Serving (FastAPI)
 
+The same retrieval implementations used in the offline benchmark power the live API endpoints.
+
 Local run:
 
 ```bash
@@ -142,16 +144,99 @@ curl -X POST http://localhost:8000/query -H "Content-Type: application/json" \
   -d '{"dataset":"mini","method":"hybrid","query":"planet with rings", "top_k":10}'
 ```
 
+MSMARCO subset example:
+
+```bash
+curl -X POST http://localhost:8000/query -H "Content-Type: application/json" \
+  -d '{"dataset":"msmarco_subset","method":"dense","query":"what causes diabetes", "top_k":5}'
+```
+
 First request may be slower due to model/index initialization. Subsequent requests reuse in-memory caches and are significantly faster.
 
 ### RAG Generation (LangChain)
+
+#### Architecture
+LangChain is used only as an orchestration layer for prompt construction and LLM calls; all retrieval logic is implemented and benchmarked independently in this repo.
+
+
+```text 
+Client
+  |
+  |  POST /rag  (dataset, method=bm25|dense|hybrid, query, top_k)
+  v
+FastAPI (service.app)
+  |
+  v
+RetrievalEngine (service.engine)
+  |
+  +--> BM25Index (sparse)         \
+  +--> DenseIndex + FAISS (dense)  ---> Top-K passages (doc_id, score, snippet)
+  +--> Hybrid (RRF merge)         /
+  |
+  v
+LangChain orchestration
+  |
+  +--> Prompt (Question + Retrieved Context)
+  |
+  +--> LLM backend
+        - default: deterministic mock LLM
+        - optional: OpenAI Chat model (via OPENAI_API_KEY)
+  |
+  v
+Answer + sources + latency breakdown
+```
+
+
+
+#### Example (mini):
 
 ```bash
 curl -X POST http://localhost:8000/rag -H "Content-Type: application/json" \
   -d '{"dataset":"mini","method":"dense","query":"cats domestic animals","top_k":3}'
 ```
 
-By default, /rag uses a deterministic mock LLM (no API keys required). If `OPENAI_API_KEY` is set, it will use an OpenAI chat model via LangChain instead.
+#### Example response (MSMARCO subset, LangChain + OpenAI)
+
+```bash
+curl -X POST http://localhost:8000/rag -H "Content-Type: application/json" \
+  -d '{"dataset":"msmarco_subset","method":"dense","query":"what causes diabetes","top_k":5}'
+```
+
+```json
+{
+  "answer": "Type 1 Diabetes is caused by an autoimmune destruction of insulin-producing beta cells...",
+  "sources": [
+    {"rank": 1, "doc_id": "4645402", "score": 0.76, "...": "..."},
+    {"rank": 2, "doc_id": "5268000", "score": 0.73, "...": "..."}
+  ],
+  "latency_ms": {
+    "retrieval_ms": 12.4,
+    "generation_ms": 1500.6,
+    "total_ms": 1515.2
+  },
+  "meta": {
+    "llm": "openai:gpt-4o-mini"
+  }
+}
+```
+
+Insights:
+
+* **Grounded generation**: The answer is synthesized directly from the top retrieved passages (not hallucinated), and supporting sources are returned for transparency.
+
+* **Separation of concerns**:
+  * Retrieval (BM25/Dense/Hybrid) handles relevance and speed (~10–15 ms).
+  * LangChain + LLM handles natural-language synthesis (~0.5–2 s).
+
+* **Latency profile**: Retrieval is negligible compared to LLM generation; optimizing retrieval improves scalability while LLM latency dominates user experience.
+
+* **Production pattern**: Retrieval is evaluated offline with Recall/MRR, while generation is evaluated by groundedness, citations, and latency rather than traditional IR metrics.
+
+Notes:
+
+* Generation latency and cost scale with token usage; retrieval remains constant-time after indexing.
+
+* By default, /rag uses a deterministic mock LLM (no API keys required). If `OPENAI_API_KEY` is set, it will use an OpenAI chat model via LangChain instead.
 
 To enable OpenAI-backed generation locally, create a `.env` file in the repo root:
 
@@ -161,3 +246,16 @@ OPENAI_MODEL=gpt-4o-mini
 ```
 
 The `.env` file is gitignored. Start the server normally; `/rag` will use OpenAI automatically when the key is present.
+
+Note: the first request may be slower due to model/index initialization; subsequent requests are faster because artifacts remain cached.
+
+**Generation metrics**:
+Retrieval quality is evaluated offline using Information Retrieval (IR) metrics such as Recall@K and MRR.  
+Generation quality, however, is assessed by groundedness to retrieved context, returned citations, latency (retrieval vs. generation), and token cost rather than IR ranking metrics.
+
+
+| metric | typical latency |
+|---|---|
+| retrieval (warm, in-memory index) | 5–15 ms |
+| generation (OpenAI LLM) | 500–2000 ms |
+
